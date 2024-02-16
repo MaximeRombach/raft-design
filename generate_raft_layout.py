@@ -40,9 +40,10 @@ interp1d = lambda x, y: interpolate.interp1d(x, y, kind='linear', bounds_error=F
 #   NUT (deg) ... nutation angle, equivalent to chief ray. NUT = -(NORM + CRD). (rotation from z-axis toward x-axis, i.e. in positive direction about y-axis)
 
 focal_surfaces = {
-    'MM1536-cfg1-20210910':
+   'MM1536-cfg1-20210910':
         {'description': 'MegaMapper 1536 config 1, 2021-09-21',
-        'file': 'MM1536-cfg1-20210910.csv',
+        'Z_file': 'MM1536-cfg1-20210910.csv',
+        'CRD_file': 'MM1536-cfg1-20210910.csv',
         'z_sign': -1,
         'vigR': 613.2713,
         'f-number': 3.57,  # per 2023-03-21 email from Schlegel. Stated as "3.6" in RFI (2019-12-13) 
@@ -74,7 +75,19 @@ focal_surfaces = {
         'blur2loss': 'DESI-like',
         'tilt2loss': 'DESI-like',
         },
-    }
+
+    'Jelinsky6m-20240214':
+        {'description': 'Mayall/Blanco compatible design with 6m primary and spherical focal surface, 2024-02-14',
+        'Z': lambda r: (12657**2 - r**2)**0.5 - 12657,  # defined here with more negative Z being toward the secondary
+        'CRD_file': 'Jelinsky6m-CRD-20240215.csv',
+        'z_sign': -1,  # applies the convention where +z is toward the fiber tips
+        'vigR': 409.4,
+        'f-number': 3.62002,  # average over whole focal surface
+        'blur2loss': 'DESI-like',
+        'tilt2loss': 'DESI-like',
+        },
+
+   }
 for surf in focal_surfaces.values():
     # fiber defocus to blur conversion is defined like in DESI-0347
     # i.e. due to spot size growing with f-number cone (1-d sigma radius of a top hat spot with diameter = defocus/2/f#/3)
@@ -86,14 +99,14 @@ focsurfs_index = {i: name for i, name in enumerate(focal_surfaces)}
 
 # command line argument parsing
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('-f', '--focal_surface_number', type=int, default=0, help=f'select focal surface design by number, valid options are {focsurfs_index}')
+parser.add_argument('-f', '--focal_surface_number', type=int, default=3, help=f'select focal surface design by number, valid options are {focsurfs_index}')
 parser.add_argument('-r', '--limit_radius', type=float, default=0, help='maximum radius beyond which no part of raft instrumented area shall protrude, argue 0 to use the default for the given focal surface')
 parser.add_argument('-mrl', '--mechanical_radius_offset_limit', type=float, default=np.inf, help='mm, enforce restriction that no mechanical part of raft can exceed "limit_radius" plus this offset')
 parser.add_argument('-mwl', '--mechanical_wedge_offset_limit', type=float, default=0.0, help='mm, if "wedge" argument < 360 deg, then no part of raft can exceed the angular wedge envelope minus this linear offset')
 parser.add_argument('-hex', '--hexagonal_tile', action='store_true', help='limit included rafts to a hexagon-shaped tile. the hexagon inscribes a circle whose radius is the maximum mechanical raft radius point (as determined by applying any other limit settings)')
-parser.add_argument('-b', '--raft_tri_base', type=float, default=80.0, help='mm, length of base edge of raft triangle')
-parser.add_argument('-l', '--raft_length', type=float, default=657.0, help='mm, length of raft from origin (at center fiber tip) to rear')
-parser.add_argument('-g', '--raft_gap', type=float, default=3.0, help='mm, nominal minimum gap between rafts (in the initial hexagonal grid; note that focus and chief-ray optimization will alter the final output)')
+parser.add_argument('-b', '--raft_tri_base', type=float, default=74.0, help='mm, length of base edge of raft triangle')
+parser.add_argument('-l', '--raft_length', type=float, default=650.0, help='mm, length of raft from origin (at center fiber tip) to rear')
+parser.add_argument('-g', '--raft_gap', type=float, default=2.0, help='mm, nominal minimum gap between rafts (in the initial hexagonal grid; note that focus and chief-ray optimization will alter the final output)')
 parser.add_argument('-c', '--raft_chamfer', type=float, default=2.5, help='mm, chamfer at triangle tips')
 parser.add_argument('-ic', '--instr_chamfer', type=float, default=8.5, help='mm, chamfer to instrumented area of raft')
 parser.add_argument('-iw', '--instr_wall', type=float, default=0.3, help='mm, shield wall thickness to instrumented area of raft (argue 0 to have no wall)')
@@ -140,18 +153,20 @@ logger.info(f'Focal surface name: {focsurf_name}')
 logger.info(f'Focal surface parameters: {focsurf}')
 CRD2R_undefined = False
 force_CRD_to_zero = userargs.ignore_chief_ray_dev
-if all(label in focsurf for label in {'Z', 'CRD'}):
+if 'Z' in focsurf: 
     R2Z = focsurf['Z']  # should be a function accepting numpy array argument for radius, returning z
-    R2CRD = focsurf['CRD']  # should be a function accepting numpy array argument for radius, returning chief ray deviation
-elif 'file' in focsurf:
-    t = Table.read(focsurf['file'], comment='#')
+elif 'Z_file' in focsurf:
+    t = Table.read(focsurf['Z_file'], comment='#')
     R2Z = interp1d(t['R'], t['Z'])
-    if 'CRD' in t.colnames:
-        R2CRD = interp1d(t['R'], t['CRD'])
-    else:
-        force_CRD_to_zero = True
 else:
-    assert False, 'unrecognized geometry input data'
+    assert False, 'no Z(R) function or tabular input data'
+if 'CRD' in focsurf:
+    R2CRD = focsurf['CRD']  # should be a function accepting numpy array argument for radius, returning chief ray deviation
+elif 'CRD_file' in focsurf:
+    t = Table.read(focsurf['CRD_file'], comment='#')
+    R2CRD = interp1d(t['R'], t['CRD'])
+else:
+    force_CRD_to_zero = True
 if force_CRD_to_zero:
     R2CRD = Polynomial([0])  # in the absence of chief ray deviation information
     CRD2R_undefined = True
