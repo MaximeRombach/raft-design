@@ -146,7 +146,7 @@ if all(label in focsurf for label in {'Z', 'CRD'}):
 elif 'file' in focsurf:
     t = Table.read(focsurf['file'], comment='#')
     R2Z = interp1d(t['R'], t['Z'])
-    if 'CRD' in t:
+    if 'CRD' in t.colnames:
         R2CRD = interp1d(t['R'], t['CRD'])
     else:
         force_CRD_to_zero = True

@@ -13,8 +13,10 @@ POSSIBLE_FREECAD_PATHs = ['C:/Program Files/FreeCAD 0.19/bin',
 
 import os
 import sys
+
 for path in POSSIBLE_FREECAD_PATHs:
     sys.path.append(path)
+
 import math
 import time
 import FreeCAD
@@ -22,30 +24,36 @@ import Part
 from FreeCAD import Base
 from astropy.table import Table
 
-import PySide
-from PySide import QtGui ,QtCore
-from PySide.QtGui import *
-from PySide.QtCore import *
+import PySide2
+from PySide2 import QtWidgets ,QtCore
+from PySide2.QtWidgets import *
+from PySide2.QtCore import *
+
 
 def get_open_name(title, initial_dir, ext):
 	try:
 	    OpenName = QFileDialog.getOpenFileName(None,QString.fromLocal8Bit(title), initial_dir, f'*.{ext}') # PyQt4
 	except Exception:
-	    OpenName, Filter = PySide.QtGui.QFileDialog.getOpenFileName(None, title, initial_dir, f'*.{ext}') #PySide
+	    OpenName, Filter = PySide2.QtWidgets.QFileDialog.getOpenFileName(None, title, initial_dir, f'*.{ext}') #PySide
 	return OpenName
 
 def get_save_name(title, initial_path, ext):
 	try:
 	    SaveName = QFileDialog.getSaveFileName(None, QString.fromLocal8Bit(title), initial_path, f'*.{ext}') # PyQt4
 	except Exception:
-	    SaveName, Filter = PySide.QtGui.QFileDialog.getSaveFileName(None, title, initial_path, f'*.{ext}') # PySide
+	    SaveName, Filter = PySide2.QtWidgets.QFileDialog.getSaveFileName(None, title, initial_path, f'*.{ext}') # PySide
 	return SaveName
 
+print('bla')
+#app = QApplication([])
+print('blabla')
 script_title = "Raft Patterning Script"
 doc_name = "PatternDoc"
+
 App.newDocument(doc_name)
 AD = App.ActiveDocument		# just to make things more readable
 starttime = time.time()
+
 print("\nBEGIN " + script_title + "...") # print the script name
 
 # Paths to source model
